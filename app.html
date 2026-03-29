@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>PrivateShare</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;800&display=swap');
+:root{--bg:#0a0a0f;--surface:#12121a;--surface2:#1a1a26;--border:#2a2a3a;--accent:#00ff88;--accent2:#0088ff;--danger:#ff4444;--warn:#ffaa00;--text:#e8e8f0;--muted:#666688;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+.header{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.logo{font-size:17px;font-weight:800;}.logo-dot{color:var(--accent);}
+.status-bar{display:flex;align-items:center;gap:12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);}
+.si{display:flex;align-items:center;gap:5px;}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--danger);transition:background .3s;}
+.dot.connected{background:var(--accent);animation:pulse 2s infinite;}
+.dot.connecting{background:var(--warn);animation:blink 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.main{display:flex;flex:1;overflow:hidden;}
+.sidebar{width:270px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.ss{padding:14px;border-bottom:1px solid var(--border);}
+.sst{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;}
+.room-panel{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px;}
+.room-id{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--accent);letter-spacing:4px;margin-bottom:6px;cursor:pointer;display:flex;align-items:center;gap:8px;}
+.hint{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);}
+.ig{display:flex;gap:6px;margin-bottom:8px;}
+input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;outline:none;transition:border-color .2s;}
+input:focus{border-color:var(--accent2);}input::placeholder{color:var(--muted);}
+.btn{padding:8px 14px;border:none;border-radius:6px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:600;font-size:12px;transition:all .2s;white-space:nowrap;}
+.ba{background:var(--accent);color:#000;}.ba:hover{background:#00cc66;transform:translateY(-1px);}
+.bb{background:var(--accent2);color:#fff;}.bb:hover{background:#0066cc;transform:translateY(-1px);}
+.bd{background:var(--danger);color:#fff;}
+.bg{background:transparent;color:var(--text);border:1px solid var(--border);}.bg:hover{border-color:var(--accent2);color:var(--accent2);}
+.bf{width:100%;text-align:center;padding:10px;}
+/* diagnóstico */
+.diag{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;margin:0 14px 10px;}
+.dr{display:flex;align-items:center;gap:6px;margin-bottom:5px;font-family:'JetBrains Mono',monospace;font-size:10px;}
+.dr:last-child{margin-bottom:0;}
+.dl{color:var(--muted);flex:1;}
+.dv{font-weight:600;}.dv.ok{color:var(--accent);}.dv.fail{color:var(--danger);}.dv.wait{color:var(--warn);}
+/* peers */
+.peers{flex:1;overflow-y:auto;padding:10px 14px;}
+.peer{display:flex;align-items:center;gap:10px;padding:9px;border-radius:8px;margin-bottom:5px;background:var(--surface2);border:1px solid var(--border);font-size:13px;}
+.peer.sh{border-color:var(--accent);}
+.av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0;}
+.pi{flex:1;min-width:0;}
+.pn{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ps{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px;}
+/* video */
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.vgrid{flex:1;display:grid;gap:8px;padding:12px;overflow:auto;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));align-content:start;}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;position:relative;aspect-ratio:16/9;}
+.tile.active{border-color:var(--accent);}
+.tile video{width:100%;height:100%;object-fit:contain;background:#000;display:block;}
+.vlabel{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);padding:4px 10px;border-radius:20px;font-family:'JetBrains Mono',monospace;font-size:11px;display:flex;align-items:center;gap:5px;}
+.vctrl{position:absolute;top:6px;right:6px;display:flex;gap:5px;opacity:0;transition:opacity .2s;}
+.tile:hover .vctrl{opacity:1;}
+.vcb{background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:5px;padding:4px 8px;font-size:11px;cursor:pointer;}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px;color:var(--muted);}
+.ei{font-size:56px;margin-bottom:16px;opacity:.3;}
+.et{font-size:20px;font-weight:800;color:var(--text);margin-bottom:6px;opacity:.5;}
+.es{font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;}
+.cbar{display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;}
+.cl{display:flex;gap:8px;flex:1;}
+.qs{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;}
+/* modal */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:2000;}
+.md{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:30px;width:380px;text-align:center;}
+.ml{font-size:44px;margin-bottom:14px;}
+.mt{font-size:22px;font-weight:800;margin-bottom:5px;}
+.ms{font-size:12px;color:var(--muted);margin-bottom:22px;font-family:'JetBrains Mono',monospace;line-height:1.7;}
+.md input{width:100%;margin-bottom:10px;text-align:center;font-size:15px;padding:11px;flex:unset;}
+/* toast */
+.tc{position:fixed;bottom:70px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:3000;}
+.toast{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;animation:si .3s ease;display:flex;align-items:center;gap:7px;max-width:320px;}
+.toast.success{border-color:var(--accent);}.toast.error{border-color:var(--danger);}.toast.info{border-color:var(--accent2);}.toast.warn{border-color:var(--warn);}
+@keyframes si{from{transform:translateX(110px);opacity:0}to{transform:translateX(0);opacity:1}}
+::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<div class="mo" id="nickModal">
+  <div class="md">
+    <div class="ml">🔒</div>
+    <div class="mt">PrivateShare</div>
+    <div class="ms">Compartir pantalla P2P cifrado<br>Solo vos y tus amigos</div>
+    <input id="nickInput" placeholder="Tu nombre o apodo..." maxlength="20"/>
+    <button class="btn ba bf" onclick="startApp()">Entrar →</button>
+  </div>
+</div>
+<div class="tc" id="tc"></div>
+
+<div class="header">
+  <div class="logo">🔒 Private<span class="logo-dot">Share</span></div>
+  <div class="status-bar">
+    <div class="si"><div class="dot" id="sigDot"></div><span id="sigTxt">Desconectado</span></div>
+    <span>|</span><span id="myNickTxt">—</span>
+    <span>|</span><span id="peerCnt">0 peers</span>
+  </div>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="ss">
+      <div class="sst">Mi Sala</div>
+      <div class="room-panel">
+        <div class="room-id" id="roomDisplay" onclick="copyRoom()">
+          <span id="roomTxt">——————</span><span style="font-size:14px">📋</span>
+        </div>
+        <div class="hint">Click para copiar el código</div>
+      </div>
+      <div class="ig">
+        <input id="joinInput" placeholder="Código de sala..." maxlength="8" style="text-transform:uppercase"/>
+        <button class="btn bb" onclick="joinRoom()">Unirse</button>
+      </div>
+      <button class="btn bg bf" onclick="newRoom()">+ Nueva sala</button>
+    </div>
+
+    <div style="padding:10px 14px 0">
+      <div class="sst">Estado de conexión</div>
+      <div class="diag">
+        <div class="dr"><span class="dl">🌐 Señalización</span><span class="dv wait" id="dSig">—</span></div>
+        <div class="dr"><span class="dl">🔗 STUN / NAT</span><span class="dv wait" id="dStun">—</span></div>
+        <div class="dr"><span class="dl">👥 Peers en sala</span><span class="dv wait" id="dRoom">0</span></div>
+        <div class="dr"><span class="dl">📡 Video P2P</span><span class="dv wait" id="dP2P">—</span></div>
+      </div>
+    </div>
+
+    <div class="ss" style="border-bottom:none;padding-bottom:4px;">
+      <div class="sst">En la sala (<span id="peerCntSide">0</span>)</div>
+    </div>
+    <div class="peers" id="peersList">
+      <div style="text-align:center;padding:18px;color:var(--muted);font-size:11px;font-family:'JetBrains Mono',monospace;">Esperando conexiones…</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div id="vgrid" class="vgrid" style="display:none"></div>
+    <div class="empty" id="emptyState">
+      <div class="ei">📡</div>
+      <div class="et">Sin streams activos</div>
+      <div class="es">Compartí tu pantalla o esperá<br>a que alguien más lo haga</div>
+    </div>
+  </div>
+</div>
+
+<div class="cbar">
+  <div class="cl">
+    <button class="btn ba" id="shareBtn" onclick="toggleShare()">🖥 Compartir Pantalla</button>
+    <select class="qs" id="qualSel">
+      <option value="hd">HD 720p</option>
+      <option value="fhd">Full HD 1080p</option>
+      <option value="low">Liviano 480p</option>
+    </select>
+  </div>
+  <button class="btn bg" id="audioBtn" onclick="toggleAudio()">🔊 Audio ON</button>
+</div>
+
+<script>
+// ================================================================
+//  PrivateShare v4 — Señalización limpia via WebSocket propio
+// ================================================================
+
+// ── CONFIGURACIÓN ──────────────────────────────────────────────
+// Tu servidor de Render (cambiá solo este valor)
+// IMPORTANTE: usa wss:// (WebSocket seguro), NO https://
+const RENDER_URL = 'wss://cloud-etsr.onrender.com';
+const MY_SERVER = (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
+  ? RENDER_URL
+  : (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
+
+// Servidores ICE para atravesar NAT (STUN gratis + TURN gratis)
+const ICE = [
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'},
+  {urls:'stun:stun.cloudflare.com:3478'},
+  // TURN público — necesario para redes con NAT estricto (ej: 4G, VPN)
+  {urls:'turn:openrelay.metered.ca:80',      username:'openrelayproject',credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443',     username:'openrelayproject',credential:'openrelayproject'},
+  {urls:'turn:openrelay.metered.ca:443?transport=tcp', username:'openrelayproject',credential:'openrelayproject'},
+];
+// ── FIN CONFIGURACIÓN ──────────────────────────────────────────
+
+let myId   = uid();
+let myNick = '';
+let roomId = '';
+let ws     = null;
+let wsOk   = false;
+let localStream = null;
+let sharing = false;
+let audioOn = true;
+let peers  = {};         // id → {nick, conn, stream, sharing}
+let iceQ   = {};         // id → [candidate] buffer pre-remoteDesc
+let retryT = null;
+let retryN = 0;
+
+// ── INIT ──────────────────────────────────────────────────────
+window.onload = () => {
+  document.getElementById('nickInput').addEventListener('keydown', e => e.key==='Enter' && startApp());
+  document.getElementById('joinInput').addEventListener('input',  e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,''); });
+  document.getElementById('joinInput').addEventListener('keydown',e => e.key==='Enter' && joinRoom());
+  testStun();
+};
+
+function startApp() {
+  const n = document.getElementById('nickInput').value.trim();
+  if (!n) { toast('Ingresá tu nombre','error'); return; }
+  myNick = n;
+  document.getElementById('nickModal').style.display = 'none';
+  document.getElementById('myNickTxt').textContent = n;
+  newRoom();
+  connect();
+}
+
+// ── SALA ─────────────────────────────────────────────────────
+function uid(n=16){ return Array.from({length:n},()=>'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random()*36)]).join(''); }
+function fmt(s){ return (s||'').match(/.{1,3}/g).join('-'); }
+
+function newRoom() {
+  Object.keys(peers).forEach(closePeer);
+  roomId = uid(6);
+  document.getElementById('roomTxt').textContent = fmt(roomId);
+  d('Room','0','wait');
+  refreshPeers();
+  if (wsOk) sig({type:'join', room:roomId, nick:myNick, from:myId});
+  toast('Sala creada: ' + fmt(roomId), 'success');
+}
+
+function joinRoom() {
+  const code = document.getElementById('joinInput').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if (code.length < 4) { toast('Código inválido','error'); return; }
+  Object.keys(peers).forEach(closePeer);
+  roomId = code;
+  document.getElementById('roomTxt').textContent = fmt(roomId);
+  document.getElementById('joinInput').value = '';
+  d('Room','uniéndose…','wait');
+  refreshPeers();
+  if (wsOk) {
+    sig({type:'join', room:roomId, nick:myNick, from:myId});
+    toast('Uniéndose a ' + fmt(roomId) + '…', 'info');
+  } else {
+    toast('Conectando al servidor…', 'warn');
+    connect();
+  }
+}
+
+function copyRoom() {
+  if (!roomId) return;
+  const t = fmt(roomId);
+  navigator.clipboard.writeText(t).catch(()=>{ const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove(); });
+  toast('Copiado: ' + t, 'success');
+}
+
+// ── WEBSOCKET ─────────────────────────────────────────────────
+function connect() {
+  if (ws && ws.readyState <= 1) return; // ya conectando/conectado
+  setSig('connecting');
+  d('Sig','conectando…','wait');
+
+  try {
+    ws = new WebSocket(MY_SERVER);
+  } catch(e) {
+    setSig('disconnected'); d('Sig','URL inválida','fail');
+    toast('URL del servidor inválida: ' + MY_SERVER, 'error');
+    return;
+  }
+
+  ws.onopen = () => {
+    wsOk = true; retryN = 0;
+    setSig('connected');
+    d('Sig', MY_SERVER.replace('wss://',''), 'ok');
+    // Anunciar en la sala actual
+    sig({type:'join', room:roomId, nick:myNick, from:myId});
+    toast('Servidor conectado ✓', 'success');
+  };
+
+  ws.onmessage = e => {
+    let m; try { m = JSON.parse(e.data); } catch { return; }
+    onMsg(m);
+  };
+
+  ws.onclose = e => {
+    wsOk = false;
+    setSig('disconnected');
+    d('Sig','desconectado','fail');
+    // Reconexión automática con backoff
+    retryN++;
+    const delay = Math.min(1500 * retryN, 15000);
+    toast(`Reconectando en ${Math.round(delay/1000)}s… (intento ${retryN})`, 'warn');
+    clearTimeout(retryT);
+    retryT = setTimeout(connect, delay);
+  };
+
+  ws.onerror = () => {
+    // onclose se encarga del retry
+  };
+}
+
+function sig(msg) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(msg));
+  }
+}
+
+// Ping keepalive (Render duerme a los 50s de inactividad en plan free)
+setInterval(() => { if (wsOk) sig({type:'ping', from:myId, room:roomId}); }, 25000);
+
+// ── MANEJADOR DE MENSAJES ─────────────────────────────────────
+async function onMsg(m) {
+  if (!m || !m.type) return;
+  if (m.from === myId) return;                          // propio mensaje
+  if (m.room && m.room !== roomId) return;              // otra sala
+  if (m.to   && m.to   !== myId)  return;              // para otro peer
+
+  switch(m.type) {
+    case 'join':   await onJoin(m);  break;
+    case 'leave':  onLeave(m);       break;
+    case 'offer':  await onOffer(m); break;
+    case 'answer': await onAnswer(m);break;
+    case 'ice':    await onIce(m);   break;
+    case 'stream-on':  if(peers[m.from]){peers[m.from].sharing=true;  refreshPeers();} break;
+    case 'stream-off': if(peers[m.from]){peers[m.from].sharing=false; refreshPeers();} break;
+    case 'pong': break;
+  }
+}
+
+// ── WEBRTC ───────────────────────────────────────────────────
+function mkPC(pid) {
+  const pc = new RTCPeerConnection({iceServers:ICE, iceCandidatePoolSize:8});
+
+  pc.onicecandidate = e => {
+    if (e.candidate) sig({type:'ice', to:pid, from:myId, room:roomId, candidate:e.candidate.toJSON()});
+  };
+
+  pc.oniceconnectionstatechange = () => {
+    const s = pc.iceConnectionState;
+    const nick = peers[pid]?.nick || pid;
+    d('P2P', s, s==='connected'||s==='completed'?'ok': s==='failed'||s==='disconnected'?'fail':'wait');
+
+    if (s === 'failed') {
+      toast(`ICE falló con ${nick}. Reintentando…`, 'warn');
+      setTimeout(() => retry(pid), 1500);
+    }
+    if (s === 'disconnected') {
+      setTimeout(() => { if(pc.iceConnectionState==='disconnected') closePeer(pid); }, 6000);
+    }
+    if (s === 'connected' || s === 'completed') {
+      toast(`🔗 Conectado P2P con ${nick}`, 'success');
+    }
+  };
+
+  pc.ontrack = e => {
+    if (e.streams?.[0] && peers[pid]) {
+      peers[pid].stream = e.streams[0];
+      showRemote(pid, e.streams[0]);
+      refreshPeers();
+      d('P2P','activo','ok');
+    }
+  };
+
+  pc.onconnectionstatechange = () => {
+    if (['disconnected','failed','closed'].includes(pc.connectionState)) closePeer(pid);
+  };
+
+  return pc;
+}
+
+async function onJoin(m) {
+  const {from:pid, nick} = m;
+  if (peers[pid]) return; // ya lo conocemos
+
+  peers[pid] = {nick, sharing:false};
+  refreshPeers();
+  toast('👋 ' + nick + ' se unió', 'success');
+
+  // El peer con ID mayor hace la oferta (evita doble oferta)
+  if (myId > pid) {
+    await callPeer(pid);
+  } else {
+    // Responder con nuestro join para que el otro nos llame
+    sig({type:'join', room:roomId, nick:myNick, from:myId, to:pid});
+  }
+}
+
+async function callPeer(pid) {
+  const pc = mkPC(pid);
+  if (peers[pid]) peers[pid].conn = pc;
+
+  if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+  try {
+    const offer = await pc.createOffer({offerToReceiveVideo:true, offerToReceiveAudio:true});
+    await pc.setLocalDescription(offer);
+    sig({type:'offer', to:pid, from:myId, room:roomId, offer:pc.localDescription});
+  } catch(e) {
+    toast('Error creando oferta: ' + e.message, 'error');
+  }
+}
+
+async function onOffer(m) {
+  const {from:pid, offer, nick} = m;
+  if (!peers[pid]) { peers[pid] = {nick:nick||pid, sharing:false}; refreshPeers(); }
+  if (peers[pid].conn) { try{peers[pid].conn.close();}catch{} }
+
+  const pc = mkPC(pid);
+  peers[pid].conn = pc;
+  if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    // Aplicar ICE buffereados
+    for (const c of (iceQ[pid]||[])) { await pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{}); }
+    delete iceQ[pid];
+
+    const ans = await pc.createAnswer();
+    await pc.setLocalDescription(ans);
+    sig({type:'answer', to:pid, from:myId, room:roomId, answer:pc.localDescription});
+  } catch(e) {
+    toast('Error procesando oferta: ' + e.message, 'error');
+  }
+}
+
+async function onAnswer(m) {
+  const {from:pid, answer} = m;
+  const pc = peers[pid]?.conn;
+  if (!pc || pc.signalingState !== 'have-local-offer') return;
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription(answer));
+    for (const c of (iceQ[pid]||[])) { await pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{}); }
+    delete iceQ[pid];
+  } catch(e) {}
+}
+
+async function onIce(m) {
+  const {from:pid, candidate} = m;
+  const pc = peers[pid]?.conn;
+  if (!pc || !pc.remoteDescription) {
+    // Bufferear hasta tener remoteDescription
+    (iceQ[pid] = iceQ[pid]||[]).push(candidate);
+    return;
+  }
+  try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch(e) {}
+}
+
+function onLeave(m) {
+  closePeer(m.from);
+  toast((m.nick||m.from) + ' salió', 'info');
+}
+
+function closePeer(pid) {
+  const p = peers[pid];
+  if (!p) return;
+  try{p.conn?.close();}catch{}
+  removeRemote(pid);
+  delete peers[pid];
+  delete iceQ[pid];
+  refreshPeers();
+  const active = Object.values(peers).some(x=>x.stream);
+  d('P2P', active?'activo':'—', active?'ok':'wait');
+}
+
+async function retry(pid) {
+  if (!peers[pid]) return;
+  if (myId > pid) await callPeer(pid);
+}
+
+// ── COMPARTIR PANTALLA ────────────────────────────────────────
+async function toggleShare() { sharing ? stopShare() : await startShare(); }
+
+async function startShare() {
+  const q = {fhd:{width:1920,height:1080,frameRate:30},low:{width:854,height:480,frameRate:15},hd:{width:1280,height:720,frameRate:24}};
+  const sel = document.getElementById('qualSel').value;
+  try {
+    const s = await navigator.mediaDevices.getDisplayMedia({video:q[sel]||q.hd, audio:audioOn});
+    localStream = s; sharing = true;
+    document.getElementById('shareBtn').textContent = '⏹ Dejar de compartir';
+    document.getElementById('shareBtn').className = 'btn bd';
+    showLocal(s);
+
+    for (const [pid, p] of Object.entries(peers)) {
+      if (p.conn) { s.getTracks().forEach(t=>p.conn.addTrack(t,s)); await renegotiate(pid); }
+    }
+    bcast({type:'stream-on', nick:myNick});
+    toast('Pantalla compartida ✓','success');
+    s.getVideoTracks()[0].onended = stopShare;
+  } catch(e) {
+    if (e.name!=='NotAllowedError') toast('Error: '+e.message,'error');
+  }
+}
+
+function stopShare() {
+  localStream?.getTracks().forEach(t=>t.stop());
+  localStream = null; sharing = false;
+  document.getElementById('shareBtn').textContent = '🖥 Compartir Pantalla';
+  document.getElementById('shareBtn').className = 'btn ba';
+  removeLocal();
+  bcast({type:'stream-off', nick:myNick});
+  toast('Compartir detenido','info');
+}
+
+async function renegotiate(pid) {
+  const pc = peers[pid]?.conn; if(!pc) return;
+  try {
+    const o = await pc.createOffer(); await pc.setLocalDescription(o);
+    sig({type:'offer', to:pid, from:myId, room:roomId, offer:pc.localDescription});
+  } catch(e){}
+}
+
+function toggleAudio() {
+  audioOn = !audioOn;
+  document.getElementById('audioBtn').textContent = audioOn ? '🔊 Audio ON' : '🔇 Audio OFF';
+  localStream?.getAudioTracks().forEach(t=>{ t.enabled=audioOn; });
+}
+
+function bcast(msg) {
+  sig({...msg, from:myId, room:roomId});
+}
+
+// ── VIDEO UI ─────────────────────────────────────────────────
+function showLocal(s) {
+  let t = document.getElementById('tile-local');
+  if (!t) { t = mkTile('local', myNick+' (Vos)'); document.getElementById('vgrid').appendChild(t); }
+  const v = t.querySelector('video'); v.srcObject = s; v.muted = true; v.play().catch(()=>{});
+  checkGrid();
+}
+function removeLocal() { document.getElementById('tile-local')?.remove(); checkGrid(); }
+
+function showRemote(pid, s) {
+  let t = document.getElementById('tile-'+pid);
+  if (!t) { t = mkTile(pid, peers[pid]?.nick||pid); document.getElementById('vgrid').appendChild(t); }
+  t.querySelector('video').srcObject = s;
+  t.querySelector('video').play().catch(()=>{});
+  checkGrid();
+}
+function removeRemote(pid) { document.getElementById('tile-'+pid)?.remove(); checkGrid(); }
+
+function mkTile(id, label) {
+  const t = document.createElement('div');
+  t.className='tile active'; t.id='tile-'+id;
+  t.innerHTML = `<video autoplay playsinline></video>
+    <div class="vlabel"><span class="dot connected"></span><span>${esc(label)}</span></div>
+    <div class="vctrl">
+      <button class="vcb" onclick="goFS('${id}')">⛶</button>
+      <button class="vcb" onclick="muteV('${id}')">🔊</button>
+    </div>`;
+  return t;
+}
+function goFS(id) {
+  const t = document.getElementById('tile-'+id); if(!t) return;
+  document.fullscreenElement ? document.exitFullscreen() : t.requestFullscreen?.();
+}
+function muteV(id) {
+  const t = document.getElementById('tile-'+id); if(!t) return;
+  const v = t.querySelector('video'); v.muted = !v.muted;
+  t.querySelector('.vcb:last-child').textContent = v.muted ? '🔇' : '🔊';
+}
+function checkGrid() {
+  const g = document.getElementById('vgrid'), has = g.children.length > 0;
+  g.style.display = has ? 'grid' : 'none';
+  document.getElementById('emptyState').style.display = has ? 'none' : 'flex';
+}
+
+// ── PEERS UI ─────────────────────────────────────────────────
+const CLR = ['#ff6b6b','#4ecdc4','#45b7d1','#96ceb4','#ffeaa7','#dda0dd','#98d8c8'];
+function refreshPeers() {
+  const n = Object.keys(peers).length;
+  document.getElementById('peerCntSide').textContent = n;
+  document.getElementById('peerCnt').textContent = n + ' peer'+(n!==1?'s':'');
+  d('Room', n ? n+' peer'+(n!==1?'s':'') : '0', n?'ok':'wait');
+
+  const list = document.getElementById('peersList');
+  if (!n) { list.innerHTML='<div style="text-align:center;padding:18px;color:var(--muted);font-size:11px;font-family:\'JetBrains Mono\',monospace;">Esperando conexiones…</div>'; return; }
+  list.innerHTML = Object.entries(peers).map(([id,p],i)=>{
+    const c=CLR[i%CLR.length], s=p.sharing?'🖥 Compartiendo':p.stream?'📡 Stream activo':'🔗 Conectado';
+    return `<div class="peer ${p.sharing?'sh':''}">
+      <div class="av" style="background:${c}20;color:${c}">${(p.nick||'?')[0].toUpperCase()}</div>
+      <div class="pi"><div class="pn">${esc(p.nick||'?')}</div><div class="ps">${s}</div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── DIAGNÓSTICO STUN ─────────────────────────────────────────
+async function testStun() {
+  try {
+    const pc = new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
+    pc.createDataChannel('t');
+    await pc.setLocalDescription(await pc.createOffer());
+    await new Promise((res,rej)=>{
+      let done=false;
+      pc.onicecandidate=e=>{ if(!done&&e.candidate?.type==='srflx'){done=true;res();} };
+      setTimeout(()=>{ if(!done)rej(); }, 5000);
+    });
+    d('Stun','OK','ok'); pc.close();
+  } catch { d('Stun','limitado (TURN activo)','warn'); }
+}
+
+// ── HELPERS ──────────────────────────────────────────────────
+function setSig(s) {
+  document.getElementById('sigDot').className = 'dot '+s;
+  document.getElementById('sigTxt').textContent = {connected:'Conectado',connecting:'Conectando…',disconnected:'Desconectado'}[s]||s;
+}
+function d(k,v,cls) {
+  const el = document.getElementById('d'+k); if(!el) return;
+  el.textContent=v; el.className='dv '+(cls||'wait');
+}
+function toast(msg, type='info') {
+  const c=document.getElementById('tc');
+  const e=document.createElement('div'); e.className='toast '+type;
+  e.innerHTML=`<span>${{success:'✓',error:'✗',info:'ℹ',warn:'⚠'}[type]||'•'}</span><span>${esc(msg)}</span>`;
+  c.appendChild(e);
+  setTimeout(()=>e.remove(), 4500);
+  while(c.children.length>6) c.removeChild(c.firstChild);
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+window.addEventListener('beforeunload', ()=>{ bcast({type:'leave',nick:myNick}); });
+</script>
+</body>
+</html>
