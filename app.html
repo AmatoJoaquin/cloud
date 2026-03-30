@@ -195,10 +195,6 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
         <input id="cfgAppName" placeholder="Pantalla para los Pibes" maxlength="40"/>
       </div>
       <div class="cfg-row">
-        <label>URL del Servidor WebSocket</label>
-        <input id="cfgWsUrl" placeholder="wss://cloud-etsr.onrender.com"/>
-      </div>
-      <div class="cfg-row">
         <label>Calidad por Defecto</label>
         <select id="cfgQualDef">
           <option value="low">480p · Liviano</option>
@@ -207,23 +203,6 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
           <option value="2k">1440p · 2K</option>
           <option value="4k">2160p · 4K ⚠ Solo Chrome/Edge</option>
         </select>
-      </div>
-      <div class="cfg-row">
-        <label>Color de Acento</label>
-        <div class="cfg-theme-row" id="themeRow">
-          <button class="cfg-theme-btn active" data-a="#7c6aff" data-b="#5de6c8" onclick="pickTheme(this)">
-            <div class="swatch" style="background:linear-gradient(135deg,#7c6aff,#5de6c8)"></div>Violeta
-          </button>
-          <button class="cfg-theme-btn" data-a="#00d4ff" data-b="#0070ff" onclick="pickTheme(this)">
-            <div class="swatch" style="background:linear-gradient(135deg,#00d4ff,#0070ff)"></div>Azul
-          </button>
-          <button class="cfg-theme-btn" data-a="#00ff88" data-b="#00cc66" onclick="pickTheme(this)">
-            <div class="swatch" style="background:linear-gradient(135deg,#00ff88,#00cc66)"></div>Verde
-          </button>
-          <button class="cfg-theme-btn" data-a="#ff6b6b" data-b="#ff9f43" onclick="pickTheme(this)">
-            <div class="swatch" style="background:linear-gradient(135deg,#ff6b6b,#ff9f43)"></div>Naranja
-          </button>
-        </div>
       </div>
     </div>
     <div class="cfg-footer">
@@ -398,7 +377,6 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 // ── DEFAULTS & CONFIG ────────────────────────────────────────
 const DEFAULTS = {appName:'Pantalla para los Pibes',wsUrl:'wss://cloud-etsr.onrender.com',qualDef:'hd',accent:'#7c6aff',accent2:'#5de6c8'};
 let cfg = {...DEFAULTS};
-let pendingA='#7c6aff', pendingB='#5de6c8';
 
 const QUAL = {
   low:{width:854,height:480,frameRate:15},
@@ -431,18 +409,14 @@ function applyName(){
 
 function openCfgModal(){
   document.getElementById('cfgAppName').value=cfg.appName||DEFAULTS.appName;
-  document.getElementById('cfgWsUrl').value=cfg.wsUrl||DEFAULTS.wsUrl;
   document.getElementById('cfgQualDef').value=cfg.qualDef||DEFAULTS.qualDef;
-  pendingA=cfg.accent||DEFAULTS.accent; pendingB=cfg.accent2||DEFAULTS.accent2;
-  document.querySelectorAll('.cfg-theme-btn').forEach(b=>b.classList.toggle('active',b.dataset.a===pendingA));
   document.getElementById('cfgModal').classList.remove('hidden');
   document.getElementById('nickModal').classList.add('hidden');
 }
 function saveCfg(){
   cfg.appName=document.getElementById('cfgAppName').value.trim()||DEFAULTS.appName;
-  cfg.wsUrl=document.getElementById('cfgWsUrl').value.trim()||DEFAULTS.wsUrl;
   cfg.qualDef=document.getElementById('cfgQualDef').value||DEFAULTS.qualDef;
-  cfg.accent=pendingA; cfg.accent2=pendingB;
+  cfg.accent=DEFAULTS.accent; cfg.accent2=DEFAULTS.accent2;
   saveCfgStorage(); applyTheme(); applyName();
   document.getElementById('qualSel').value=cfg.qualDef;
   document.getElementById('cfgModal').classList.add('hidden');
@@ -452,10 +426,7 @@ function saveCfg(){
 function resetCfg(){
   cfg={...DEFAULTS}; saveCfgStorage();
   document.getElementById('cfgAppName').value=DEFAULTS.appName;
-  document.getElementById('cfgWsUrl').value=DEFAULTS.wsUrl;
   document.getElementById('cfgQualDef').value=DEFAULTS.qualDef;
-  pendingA=DEFAULTS.accent; pendingB=DEFAULTS.accent2;
-  document.querySelectorAll('.cfg-theme-btn').forEach(b=>b.classList.toggle('active',b.dataset.a===DEFAULTS.accent));
   applyTheme(); applyName();
 }
 function pickTheme(btn){
@@ -542,8 +513,13 @@ window.onload=()=>{
   loadCfg(); applyTheme(); applyName();
   document.getElementById('qualSel').value=cfg.qualDef||'hd';
   setAudioSource('system');
-  const hasCfg=!!localStorage.getItem('pxp_cfg');
-  if(hasCfg){document.getElementById('cfgModal').classList.add('hidden');document.getElementById('nickModal').classList.remove('hidden');}
+  // Siempre mostrar nick modal directamente, nunca el cfg modal al inicio
+  document.getElementById('cfgModal').classList.add('hidden');
+  document.getElementById('nickModal').classList.remove('hidden');
+  // Recuperar nick guardado
+  const savedNick=localStorage.getItem('pxp_nick')||'';
+  if(savedNick){document.getElementById('nickInput').value=savedNick;}
+  document.getElementById('nickInput').focus();
   document.getElementById('nickInput').addEventListener('keydown',e=>e.key==='Enter'&&startApp());
   document.getElementById('joinInput').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'');});
   document.getElementById('joinInput').addEventListener('keydown',e=>e.key==='Enter'&&joinRoom());
@@ -555,6 +531,7 @@ function startApp(){
   const n=document.getElementById('nickInput').value.trim();
   if(!n){toast('Ingresá tu nombre','error');return;}
   myNick=n;
+  try{localStorage.setItem('pxp_nick',n);}catch{}
   document.getElementById('nickModal').classList.add('hidden');
   document.getElementById('myNickTxt').textContent=n;
   document.getElementById('nickPill').style.display='flex';
@@ -594,7 +571,10 @@ setInterval(()=>{if(wsOk)sig({type:'ping',from:myId,room:roomId});},25000);
 // ── MENSAJES ─────────────────────────────────────────────────
 async function onMsg(m){
   if(!m||!m.type)return;if(m.from===myId)return;if(m.room&&m.room!==roomId)return;if(m.to&&m.to!==myId)return;
-  switch(m.type){case 'join':await onJoin(m);break;case 'leave':onLeave(m);break;case 'offer':await onOffer(m);break;case 'answer':await onAnswer(m);break;case 'ice':await onIce(m);break;case 'stream-on':if(peers[m.from]){peers[m.from].sharing=true;refreshPeers();}break;case 'stream-off':if(peers[m.from]){peers[m.from].sharing=false;refreshPeers();}break;case 'pong':break;}
+  switch(m.type){case 'join':await onJoin(m);break;case 'leave':onLeave(m);break;case 'offer':await onOffer(m);break;case 'answer':await onAnswer(m);break;case 'ice':await onIce(m);break;
+  case 'stream-on':if(peers[m.from]){peers[m.from].sharing=true;refreshPeers();}break;
+  case 'stream-off':if(peers[m.from]){peers[m.from].sharing=false;peers[m.from].stream=null;const tile=document.getElementById('tile-'+m.from);if(tile){const v=tile.querySelector('video');if(v){v.pause();v.srcObject=null;}tile.remove();}checkGrid();refreshPeers();toast((m.nick||m.from)+' dejó de compartir','info');}break;
+  case 'pong':break;}
 }
 
 // ── WEBRTC ───────────────────────────────────────────────────
@@ -652,7 +632,21 @@ async function startShareInternal(qual){
   return true;
 }
 
-function stopShare(){localStream?.getTracks().forEach(t=>t.stop());localStream=null;sharing=false;document.getElementById('qualBadge').classList.remove('on');const sb=document.getElementById('shareBtn');sb.className='btn btn-primary';sb.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Compartir Pantalla';removeLocal();bcast({type:'stream-off',nick:myNick});toast('Compartir detenido','info');}
+function stopShare(){
+  if(localStream){localStream.getTracks().forEach(t=>t.stop());}
+  // Quitar tracks de todas las conexiones P2P
+  for(const[pid,p]of Object.entries(peers)){
+    if(p.conn){
+      const senders=p.conn.getSenders();
+      senders.forEach(s=>{try{p.conn.removeTrack(s);}catch{}});
+      renegotiate(pid);
+    }
+  }
+  localStream=null;sharing=false;
+  document.getElementById('qualBadge').classList.remove('on');
+  const sb=document.getElementById('shareBtn');sb.className='btn btn-primary';sb.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Compartir Pantalla';
+  removeLocal();bcast({type:'stream-off',nick:myNick});toast('Compartir detenido','info');
+}
 async function renegotiate(pid){const pc=peers[pid]?.conn;if(!pc)return;try{const o=await pc.createOffer();await pc.setLocalDescription(o);sig({type:'offer',to:pid,from:myId,room:roomId,offer:pc.localDescription});}catch{}}
 function bcast(msg){sig({...msg,from:myId,room:roomId});}
 
